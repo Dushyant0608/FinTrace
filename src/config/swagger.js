@@ -4,9 +4,9 @@ const options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "Backend Ledger API",
+      title: "FinTrace API",
       version: "1.0.0",
-      description: "API documentation for Backend Ledger system"
+      description: "API documentation for FinTrace"
     },
     servers: [
         {
@@ -14,7 +14,7 @@ const options = {
           description: "Local server"
         },
         {
-          url: "https://backend-ledger.onrender.com/api",
+          url: "https://fintrace-4ltx.onrender.com/api",
           description: "Production server"
         }
       ],
