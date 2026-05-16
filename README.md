@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=32&pause=1000&color=00D9FF&center=true&vCenter=true&width=700&lines=Fintrace+API;Tamper-Proof+%7C+ACID-Guaranteed+%7C+Idempotent;Audit-Grade+Financial+Ledger+System" alt="Typing SVG" />
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=32&pause=1000&color=00D9FF&center=true&vCenter=true&width=700&lines=FinTrace+API;Tamper-Proof+%26+ACID-Guaranteed;Idempotent+Financial+Ledger" alt="Typing SVG" />
 
 <br/>
 
@@ -14,8 +14,8 @@
 
 <br/>
 
-[![Live API](https://img.shields.io/badge/🚀_Live_API-backend--ledger.onrender.com-blue?style=for-the-badge)](https://backend-ledger.onrender.com)
-[![Swagger Docs](https://img.shields.io/badge/📖_API_Docs-Swagger_UI-85EA2D?style=for-the-badge)](https://backend-ledger.onrender.com/api-docs)
+[![Live API](https://img.shields.io/badge/🚀_Live_API-fintrace--4ltx.onrender.com-blue?style=for-the-badge)](https://fintrace-4ltx.onrender.com)
+[![Swagger Docs](https://img.shields.io/badge/📖_API_Docs-Swagger_UI-85EA2D?style=for-the-badge)](https://fintrace-4ltx.onrender.com/api-docs)
 
 </div>
 
@@ -23,7 +23,7 @@
 
 ## 📌 Overview
 
-**Fintrace** is an audit-grade double-entry financial ledger API built with Node.js. Every fund transfer produces permanent, unalterable DEBIT/CREDIT entry pairs enforced by 8 Mongoose pre-hooks that block all mutation operations — balances are derived from ledger aggregation, never stored directly. Transfers run through a 10-step ACID pipeline backed by MongoDB sessions with automatic rollback on failure.
+**FinTrace** is an audit-grade double-entry financial ledger API built with Node.js. Every fund transfer produces permanent, unalterable DEBIT/CREDIT entry pairs enforced by 8 Mongoose pre-hooks that block all mutation operations — balances are derived from ledger aggregation, never stored directly. Transfers run through a 10-step ACID pipeline backed by MongoDB sessions with automatic rollback on failure.
 
 ```
 Client → Express API → Routes → Controllers → Services → MongoDB
@@ -76,8 +76,8 @@ Client → Express API → Routes → Controllers → Services → MongoDB
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/Dushyant0608/backend-ledger
-cd backend-ledger
+git clone https://github.com/Dushyant0608/FinTrace
+cd FinTrace
 ```
 
 ### 2. Install dependencies
@@ -146,7 +146,7 @@ http://localhost:3000/api-docs
 | `POST` | `/transaction` | Transfer funds between accounts | ✅ |
 | `POST` | `/transaction/system/initial-fund` | Add initial system funds | System |
 
-> **Full interactive documentation** available at [https://backend-ledger.onrender.com/api-docs](https://backend-ledger.onrender.com/api-docs)
+> **Full interactive documentation** available at [https://fintrace-4ltx.onrender.com/api-docs](https://fintrace-4ltx.onrender.com/api-docs)
 
 ---
 
@@ -187,7 +187,7 @@ Authorization: Bearer <token>
 ## 🗂️ Project Structure
 
 ```
-fintrace/
+FinTrace/
 │
 ├── src/
 │   ├── config/
@@ -234,8 +234,8 @@ fintrace/
 
 | Resource | URL |
 |---|---|
-| Base API | https://backend-ledger.onrender.com |
-| Swagger Docs | https://backend-ledger.onrender.com/api-docs |
+| Base API | https://fintrace-4ltx.onrender.com |
+| Swagger Docs | https://fintrace-4ltx.onrender.com/api-docs |
 
 ---
 
