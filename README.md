@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=32&pause=1000&color=00D9FF&center=true&vCenter=true&width=700&lines=Backend+Ledger+API;Secure+%7C+Scalable+%7C+Production-Ready;Banking-Grade+Financial+System" alt="Typing SVG" />
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=32&pause=1000&color=00D9FF&center=true&vCenter=true&width=700&lines=Fintrace+API;Tamper-Proof+%7C+ACID-Guaranteed+%7C+Idempotent;Audit-Grade+Financial+Ledger+System" alt="Typing SVG" />
 
 <br/>
 
@@ -23,7 +23,7 @@
 
 ## 📌 Overview
 
-**Backend Ledger** is a production-grade banking-style ledger system built with Node.js. It enables users to create accounts, transfer funds securely, and track every transaction with full debit/credit ledger records — all backed by ACID-compliant MongoDB transactions.
+**Fintrace** is an audit-grade double-entry financial ledger API built with Node.js. Every fund transfer produces permanent, unalterable DEBIT/CREDIT entry pairs enforced by 8 Mongoose pre-hooks that block all mutation operations — balances are derived from ledger aggregation, never stored directly. Transfers run through a 10-step ACID pipeline backed by MongoDB sessions with automatic rollback on failure.
 
 ```
 Client → Express API → Routes → Controllers → Services → MongoDB
@@ -35,11 +35,11 @@ Client → Express API → Routes → Controllers → Services → MongoDB
 
 | Feature | Description |
 |---|---|
-| 🔐 **JWT Authentication** | Secure login, registration, and logout with token blacklisting |
-| 💸 **Fund Transfers** | ACID-safe money transfers between accounts |
-| 📒 **Ledger Accounting** | Full debit/credit ledger entries per transaction |
-| 🔑 **Idempotency Keys** | Prevents duplicate transactions from retries |
-| 🚦 **Redis Rate Limiting** | Upstash-powered rate limiting on all critical endpoints |
+| 📒 **Immutable Double-Entry Ledger** | 8 Mongoose pre-hooks block all mutations; every transfer produces permanent DEBIT/CREDIT pairs |
+| ⚙️ **ACID Transaction Pipeline** | 10-step transfer flow with MongoDB sessions and automatic rollback on failure |
+| 🔑 **Idempotency Keys** | Handles all four terminal states (COMPLETED/PENDING/FAILED/REVERSED) — no blind retry rejection |
+| 🚦 **Layered Rate Limiting** | Two independent Upstash Redis limiters: IP-keyed on auth routes, user-keyed on transaction routes |
+| 🔐 **JWT Auth + Token Blacklisting** | HTTP-only session cookies, bcrypt hashing, immediate session invalidation on logout |
 | 📧 **Email Notifications** | OAuth2 Gmail notifications for registrations and transactions |
 | 📄 **Swagger Docs** | Interactive API documentation at `/api-docs` |
 
@@ -76,8 +76,8 @@ Client → Express API → Routes → Controllers → Services → MongoDB
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/Dushyant0608/Backend-ledger
-cd Backend-ledger
+git clone https://github.com/Dushyant0608/backend-ledger
+cd backend-ledger
 ```
 
 ### 2. Install dependencies
@@ -187,7 +187,7 @@ Authorization: Bearer <token>
 ## 🗂️ Project Structure
 
 ```
-Backend-Ledger/
+fintrace/
 │
 ├── src/
 │   ├── config/
