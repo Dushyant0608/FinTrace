@@ -13,7 +13,7 @@ async function authMiddleware (req, res , next) {
         })
     }
 
-    const isBlackListed = await prisma.tokenlList.findUnique({ where : { token }});
+    const isBlackListed = await prisma.tokenBlacklist.findUnique({ where : { token }});
 
     if(isBlackListed){
         return res.status(401).json({
