@@ -1,14 +1,7 @@
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
+const {PrismaClient} = require('@prisma/client');
 
-async function connectDB(){
-    try{
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log("Connected  to DB successfully")
-    }catch(err){
-        console.log("Error in connectDB : ",err)
-        process.exit(1);
-    }
-}
+const prisma = new PrismaClient({
+    log:['error','warn'],
+});
 
-module.exports = connectDB;
+module.exports = prisma;
