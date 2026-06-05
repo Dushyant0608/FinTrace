@@ -1,4 +1,4 @@
-const { prisma } = require('@prisma/client');
+const  prisma  = require('../config/db');
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const emailService = require('../services/email.service');
@@ -69,7 +69,7 @@ async function userLoginController(req, res) {
     res.cookie("token", token);
     res.status(200).json({
         User: {
-            _id: user._id,
+            id: user.id,
             name: user.name,
             email: user.email
         },
