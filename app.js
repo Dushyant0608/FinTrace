@@ -1,5 +1,6 @@
 const express = require('express');
 const cookieparser = require("cookie-parser");
+const { initCronJobs } = require("./src/jobs");
 const app = express();
 
 const swaggerUi = require("swagger-ui-express");
@@ -33,6 +34,8 @@ app.get('/' , (req,res)=>{
 app.use("/api/auth" , authRouter);
 app.use("/api/account" , accountRouter);
 app.use("/api/transaction" , transactionRouter);
+
+initCronJobs();
 
 
 
