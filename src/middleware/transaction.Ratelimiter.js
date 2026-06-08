@@ -1,21 +1,13 @@
-const { transactionLimiter } = require("../config/upStash");
+const { transactionLimiter } = require('../config/redis');
 
-const transactionRateLimiter = async (req, res, next) => {
-  try {
-    const identifier = req.user.id;
-
-    const { success } = await transactionLimiter.limit(`txn-${identifier}`);
-
-    if (!success) {
-      return res.status(429).json({
-        message: "Too many transactions. Please try again later."
-      });
-    }
-
+const transactionRateLimiter = async (req, res, next) =>{
+  try{
+    await transactionRateLimiter.consume(`txn-${req.user.id}`);
     next();
-  } catch (error) {
-    console.error("Rate Limiting Error");
-    next(error);
+  }catch(err){
+    return res.status(429).json({
+      message : "Too many transaction request. Please try again later."
+    });
   }
 };
 
