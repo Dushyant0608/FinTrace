@@ -17,14 +17,14 @@ redisClient.on("error", (err)=>{
   console.log("Redis error: ",err);
 });
 
-const authLimiter = new redisClient({
+const authLimiter = new RateLimiterRedis({
   storeClient : redisClient,
   prefix : "auth",
   points : 10,
   duration : 60,
 });
 
-const transactionLimiter = new redisClient({
+const transactionLimiter = new RateLimiterRedis({
   storeClient : redisClient,
   prefix  : "transaction",
   points : 20,
