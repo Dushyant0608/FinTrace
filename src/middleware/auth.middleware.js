@@ -1,6 +1,6 @@
-const userModel = require('../models/user.model')
+const prisma = require('../config/db');
 const jwt = require('jsonwebtoken');
-const tokenBlackListModel = require("../models/blackList.model");
+
 
 
 async function authMiddleware (req, res , next) {
@@ -13,7 +13,7 @@ async function authMiddleware (req, res , next) {
         })
     }
 
-    const isBlackListed = await tokenBlackListModel.findOne({token});
+    const isBlackListed = await prisma.tokenBlacklist.findUnique({ where : { token }});
 
     if(isBlackListed){
         return res.status(401).json({
@@ -24,7 +24,7 @@ async function authMiddleware (req, res , next) {
     try {
         const decode = jwt.verify(token , process.env.JWT_SECRET) 
 
-        const user = await userModel.findById(decode.userID)
+        const user = await prisma.user.findUnique({ where : { id: decode.userID }});
 
         req.user = user;
 
@@ -47,7 +47,7 @@ async function authSystemUserMiddleware (req,res,next){
         })
     }
 
-    const isBlackListed = await tokenBlackListModel.findOne({token});
+    const isBlackListed = await prisma.tokenBlacklist.findUnique({ where : { token }})
 
     if(isBlackListed){
         return res.status(401).json({
@@ -58,7 +58,7 @@ async function authSystemUserMiddleware (req,res,next){
     try {
         const decode = jwt.verify(token , process.env.JWT_SECRET);
 
-        const user = await userModel.findById(decode.userID).select("+systemUser");
+        const user = await prisma.user.findUnique({ where : {id : decode.userID}});
 
         if(!user.systemUser){
             return res.status(403).json({

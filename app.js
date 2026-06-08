@@ -1,9 +1,10 @@
 const express = require('express');
 const cookieparser = require("cookie-parser");
+const { initCronJobs } = require("./src/jobs");
 const app = express();
 
 const swaggerUi = require("swagger-ui-express");
-const swaggerSpec = require("./config/swagger");
+const swaggerSpec = require("./src/config/swagger");
 
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -16,9 +17,9 @@ app.use(cookieparser());
 /**
  * - Router required
  */
-const authRouter = require("./routes/auth.route");
-const accountRouter = require("./routes/account.route");
-const transactionRouter = require("./routes/transaction.route");
+const authRouter = require("./src/routes/auth.route");
+const accountRouter = require("./src/routes/account.route");
+const transactionRouter = require("./src/routes/transaction.route");
 /**
  * - dummy route
  */
@@ -33,6 +34,8 @@ app.get('/' , (req,res)=>{
 app.use("/api/auth" , authRouter);
 app.use("/api/account" , accountRouter);
 app.use("/api/transaction" , transactionRouter);
+
+initCronJobs();
 
 
 

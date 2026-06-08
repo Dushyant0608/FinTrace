@@ -1,74 +1,77 @@
-const userModel = require("../models/user.model");
+const  prisma  = require('../config/db');
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 const emailService = require('../services/email.service');
-const tokenBlackListModel = require("../models/blackList.model");
+
 
 
 /**
  * - user register controller
  * - POST /api/auth/register
 */
-async function userRegisterController(req , res) {
-    const {email , name , password} = req.body;
+async function userRegisterController(req, res) {
+    const { email, name, password } = req.body;
 
-    const isExist = await userModel.findOne({email : email});
+    const isExist = await prisma.user.findUnique({ where: { email } });
 
-    if(isExist){
+    if (isExist) {
         return res.status(422).json({
-            message : "User already exist with provided email.",
-            status :  "failed"
+            message: "User already exist with provided email.",
+            status: "failed"
         })
     }
 
-    const createdUser = await userModel.create({
-        name,email,password
-    })
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    const token = jwt.sign({userID : createdUser._id} , process.env.JWT_SECRET , {expiresIn: "3d"});
-    res.cookie("token" , token);
+    const createdUser = await prisma.user.create({
+        data: { name, email, password: hashedPassword },
+    });
+
+    const token = jwt.sign({ userID: createdUser.id }, process.env.JWT_SECRET, { expiresIn: "3d" });
+    res.cookie("token", token);
     res.status(201).json({
-        User : {
-            _id : createdUser._id,
-            name : createdUser.name,
-            email : createdUser.email
+        User: {
+            id: createdUser.id,
+            name: createdUser.name,
+            email: createdUser.email
         },
-        token
+        token,
     })
 
-    await emailService.sendRegistrationEmail(createdUser.email , createdUser.name);
+    await emailService.sendRegistrationEmail(createdUser.email, createdUser.name);
 }
 
 /**
  * - user login controller
  * - POST /api/auth/login
 */
-async function userLoginController(req,res) {
-    const {email , password} = req.body;
+async function userLoginController(req, res) {
+    const { email, password } = req.body;
 
-    const user = await userModel.findOne({email}).select("+password");
-    
-    if(!user){
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
         return res.status(401).json({
-            message : "Email or Password is Invalid"
+            message: "Email or Password is Invalid"
         })
     }
 
-    const isValidPassword = await user.comparePassword(password);
+    const isValidPassword = await bcrypt.compare(password, user.password);
 
-    if(!isValidPassword){
+    if (!isValidPassword) {
         return res.status(401).json({
-            message : "Email or Password is Invalid"
+            message: "Email or Password is Invalid"
         })
     }
 
-    const token = jwt.sign({userID : user._id} , process.env.JWT_SECRET , {expiresIn: "3d"});
+    const token = jwt.sign({ userID: user.id }, process.env.JWT_SECRET, { expiresIn: "3d" });
 
-    res.cookie("token" , token);
+    res.cookie("token", token);
     res.status(200).json({
-        User : {
-            _id : user._id,
-            name : user.name,
-            email : user.email
+        User: {
+            id: user.id,
+            name: user.name,
+            email: user.email
         },
         token
     })
@@ -80,23 +83,21 @@ async function userLoginController(req,res) {
  * - user logout controller
  * - POST /api/auth/logout
  */
-async function userLogoutController (req , res){
+async function userLogoutController(req, res) {
     const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
 
-    if(!token){
-        res.status(200).json({
-            message : "User logged out successfully"
+    if (!token) {
+        return res.status(200).json({
+            message: "User logged out successfully"
         })
     }
 
     res.clearCookie("token");
 
-    await tokenBlackListModel.create({
-        token
-    })
+    await prisma.tokenBlacklist.create({ data: { token } });
 
     res.status(200).json({
-        message : "User logged out successfully"
+        message: "User logged out successfully"
     })
 }
 

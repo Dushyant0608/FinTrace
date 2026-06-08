@@ -1,8 +1,6 @@
-const transactionModel = require("../models/transaction.model");
-const ledgerModel = require("../models/ledger.model");
-const accountModel = require("../models/account.model");
+const prisma = require('../config/db');
 const emailService = require("../services/email.service");
-const mongoose = require("mongoose");
+
 
 /**
  * - Create a new transaction
@@ -15,7 +13,7 @@ const mongoose = require("mongoose");
      * 6. Create DEBIT ledger entry
      * 7. Create CREDIT ledger entry
      * 8. Mark transaction COMPLETED
-     * 9. Commit MongoDB session
+     * 9. Commit Prisma transaction
      * 10. Send email notification
  */
 
@@ -30,13 +28,9 @@ async function createTransaction (req , res ) {
         })
     }
 
-    const fromUserAccount = await accountModel.findOne({
-        _id : fromAccount
-    })
+    const fromUserAccount = await prisma.account.findUnique({ where : { id : fromAccount}});
 
-    const toUserAccount = await accountModel.findOne({
-        _id : toAccount
-    })
+    const toUserAccount = await prisma.account.findUnique({ where : { id : toAccount}});
 
     if(!fromUserAccount || !toUserAccount) {
         return res.status(400).json({
@@ -47,9 +41,7 @@ async function createTransaction (req , res ) {
     /**
      * - 2. Validate idempotency key
      */
-    const isTransactionAlreadyExists = await transactionModel.findOne({
-        idempotencyKey: idempotencyKey
-    })
+    const isTransactionAlreadyExists = await prisma.transaction.findUnique({ where : { idempotencyKey }});
 
     if (isTransactionAlreadyExists) {
         if (isTransactionAlreadyExists.status === "COMPLETED") {
@@ -88,147 +80,199 @@ async function createTransaction (req , res ) {
         })
     }
 
-    /**
-     * - 4. Derive sender balance from ledger
-     */
-    const balance = await fromUserAccount.getBalance();
-
-    if(balance < amount) {
-        return res.status(400).json({
-            message : `Insufficent Balance. Current balance is ${balance} , Requested amount is ${amount}`
-        })
-    }
-
-    /**
-     * - 5. Create transaction (PENDING)
-     */
     let transaction;
-    try {
-        const session = await mongoose.startSession();
-        session.startTransaction();
-    
-        const result = (await transactionModel.create([{
-            toAccount,
-            fromAccount,
-            amount,
-            idempotencyKey,
-            status : "PENDING"
-        }] , { session }))
-    
-        transaction = result[0];
-    
-        const debitLedgerEntry = await ledgerModel.create([{
-            account : fromAccount,
-            amount : amount,
-            transaction : transaction._id,
-            type : "DEBITED"
-        }] , {session})
 
-        await (() => {
-            return new Promise((resolve) => setTimeout(resolve, 15 * 1000));
-        })()
-    
-        const creditLedgerEntry = await ledgerModel.create([{
-            account : toAccount,
-            amount : amount,
-            transaction : transaction._id,
-            type : "CREDITED"
-        }] , {session})
-    
-        await transactionModel.findOneAndUpdate(
-            {_id : transaction._id},
-            {status : "COMPLETED"},
-            { session }
-        )
-    
-        await session.commitTransaction()
-        session.endSession();
-    } catch(err){
-        return res.status(400).json({
-            message : "Transaction is pending due to some reason ,  please try again some time"
-        })
+    try {
+        await prisma.$transaction(async (tx) => {
+            /**
+             * - 4. SELECT FOR UPDATE (lock ordering to prevent deadlocks)
+             *   Always lock the lower UUID first
+             */
+            const [firstId, secondId] = [fromAccount, toAccount].sort();
+
+            await tx.$queryRaw`
+                SELECT id FROM accounts WHERE id = ${firstId} FOR UPDATE
+            `;
+            await tx.$queryRaw`
+                SELECT id FROM accounts WHERE id = ${secondId} FOR UPDATE
+            `;
+
+            /**
+             * - 5. Derive sender balance from ledger
+             */
+            const result = await tx.$queryRaw`
+                SELECT
+                    COALESCE(SUM(CASE WHEN "type" = 'CREDITED' THEN amount ELSE 0 END), 0) -
+                    COALESCE(SUM(CASE WHEN "type" = 'DEBITED'  THEN amount ELSE 0 END), 0) AS balance
+                FROM ledger_entries
+                WHERE "accountId" = ${fromAccount}
+            `;
+
+            const balance = Number(result[0].balance);
+
+            if (balance < amount) {
+                throw new Error(`INSUFFICIENT_BALANCE:${balance}`);
+            }
+
+            /**
+             * - 6. Create transaction (PENDING)
+             */
+            transaction = await tx.transaction.create({
+                data: {
+                    fromAccountId: fromAccount,
+                    toAccountId: toAccount,
+                    amount,
+                    idempotencyKey,
+                    status: "PENDING",
+                },
+            });
+
+            /**
+             * - 7. Create DEBIT ledger entry
+             */
+            await tx.ledgerEntry.create({
+                data: {
+                    accountId: fromAccount,
+                    transactionId: transaction.id,
+                    amount,
+                    type: "DEBITED",
+                },
+            });
+
+            /**
+             * - 8. Create CREDIT ledger entry
+             */
+            await tx.ledgerEntry.create({
+                data: {
+                    accountId: toAccount,
+                    transactionId: transaction.id,
+                    amount,
+                    type: "CREDITED",
+                },
+            });
+
+            /**
+             * - 9. Mark transaction COMPLETED
+             */
+            transaction = await tx.transaction.update({
+                where: { id: transaction.id },
+                data: { status: "COMPLETED" },
+            });
+        });
+    } catch (err) {
+        // Mark transaction FAILED if it was created before the error
+        if (transaction?.id) {
+            await prisma.transaction.update({
+                where: { id: transaction.id },
+                data: { status: "FAILED" },
+            });
+        }
+
+        if (err.message?.startsWith("INSUFFICIENT_BALANCE")) {
+            const balance = err.message.split(":")[1];
+            return res.status(400).json({
+                message: `Insufficient balance. Current balance is ${balance}, requested amount is ${amount}`,
+            });
+        }
+
+        return res.status(500).json({
+            message: "Transaction failed, please try again",
+        });
     }
 
     /**
      * 10. Send email notification
      */
-
-    await emailService.sendTransactionEmail(req.user.email, req.user.name , amount , toAccount);
+    await emailService.sendTransactionEmail(req.user.email, req.user.name, amount, toAccount);
 
     res.status(201).json({
-        message : "Transaction completed successfully",
-        transaction : transaction
-    })
-
+        message: "Transaction completed successfully",
+        transaction,
+    });
 }
 
-async function createInitialFundTransaction(req,res) {
-    const { toAccount , amount , idempotencyKey} = req.body;
+/**
+ * POST /api/transaction/system/initial-fund
+ * Initial fund transaction — system account to user account
+ */
+async function createInitialFundTransaction(req, res) {
+    const { toAccount, amount, idempotencyKey } = req.body;
 
-    if(!toAccount || !amount || !idempotencyKey){
+    if (!toAccount || !amount || !idempotencyKey) {
         return res.status(400).json({
-            message : "toAccount , amount and idemptoencyKey is required to initiate transaction"
-        })
+            message: "toAccount, amount and idempotencyKey are required to initiate transaction",
+        });
     }
 
-    const toUserAccount = await accountModel.findOne({_id : toAccount});
-    
-    if(!toUserAccount){
-        return res.status(400).json({
-            message : "Invalid Account"
-        })
+    const toUserAccount = await prisma.account.findUnique({ where: { id: toAccount } });
+
+    if (!toUserAccount) {
+        return res.status(400).json({ message: "Invalid Account" });
     }
 
-    const fromUserAccount = await accountModel.findOne({
-        user : req.user._id
-    })
-    console.log(fromUserAccount);
+    const fromUserAccount = await prisma.account.findFirst({
+        where: { userId: req.user.id },
+    });
 
-    if(!fromUserAccount){
-        return res.status(400).json({
-            
-            message : "Invalid system account"
-        })
+    if (!fromUserAccount) {
+        return res.status(400).json({ message: "Invalid system account" });
     }
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    let transaction;
 
-    const transaction = new transactionModel({
-        fromAccount : fromUserAccount._id,
-        toAccount : toUserAccount._id,
-        amount,
-        idempotencyKey,
-        status : "PENDING",
-    })
+    try {
+        await prisma.$transaction(async (tx) => {
+            transaction = await tx.transaction.create({
+                data: {
+                    fromAccountId: fromUserAccount.id,
+                    toAccountId: toUserAccount.id,
+                    amount,
+                    idempotencyKey,
+                    status: "PENDING",
+                },
+            });
 
-    const debitLedgerEntry = await ledgerModel.create([{
-        account : fromUserAccount._id,
-        amount : amount,
-        transaction : transaction._id,
-        type : "DEBITED"
-    }] , {session});
+            await tx.ledgerEntry.create({
+                data: {
+                    accountId: fromUserAccount.id,
+                    transactionId: transaction.id,
+                    amount,
+                    type: "DEBITED",
+                },
+            });
 
-    const creditLedgerEntry = await ledgerModel.create([{
-        account : toUserAccount._id,
-        amount : amount,
-        transaction : transaction._id,
-        type : "CREDITED"
-    }] , {session});
+            await tx.ledgerEntry.create({
+                data: {
+                    accountId: toUserAccount.id,
+                    transactionId: transaction.id,
+                    amount,
+                    type: "CREDITED",
+                },
+            });
 
-    transaction.status = "COMPLETED"
-    await transaction.save({session});
+            transaction = await tx.transaction.update({
+                where: { id: transaction.id },
+                data: { status: "COMPLETED" },
+            });
+        });
+    } catch (err) {
+        if (transaction?.id) {
+            await prisma.transaction.update({
+                where: { id: transaction.id },
+                data: { status: "FAILED" },
+            });
+        }
 
-    await session.commitTransaction();
-    session.endSession();
+        return res.status(500).json({ message: "Initial fund transaction failed" });
+    }
 
-    return res.status(201).json({
-        message : "Initial Fund Transaction completed successfully",
-        transaction : transaction
-    })
+    res.status(201).json({
+        message: "Initial fund transaction completed successfully",
+        transaction,
+    });
 }
 
 module.exports = {
     createTransaction,
-    createInitialFundTransaction
-}
+    createInitialFundTransaction,
+};
